@@ -9,7 +9,7 @@ from other languages. EXPERIMENTAL: everything here may still change.
 | [js/](js) | the module `mb3d` for Node.js | the program `mb3d`, Node 18+ |
 | [ffi/](ffi) | `libmb3d`, a C library, with a C and a Python example | Rust to build it |
 | [demos/](demos) | web pages that use the modules | one of the modules |
-| [notebook/](notebook) | a Jupyter notebook: the examples in Python and JavaScript, sliders; runs online | nothing |
+| [notebook/](notebook) | a Jupyter notebook: the examples in Python and JavaScript, sliders; runs online | Jupyter |
 
 The Python and JavaScript modules start the program `mb3d serve` and talk
 to it (mb3d-rs: docs/API.md); they have no other dependencies. The C library
@@ -24,12 +24,19 @@ on the PATH, or tell where it is:
 
 ## Try it online
 
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/thr32423/mb3d-bindings/blob/main/notebook/mb3d.ipynb)
+No account, nothing to install; the first start takes a minute or two
+([mybinder.org](https://mybinder.org) starts a small machine for you).
 
-A [notebook](notebook/mb3d.ipynb) that fetches the program and
-the modules by itself and runs the Python and JavaScript examples below on
-Google's machine: nothing to install. It runs on your own computer too
-(Jupyter; ipywidgets for the sliders).
+* [The explorer](https://mybinder.org/v2/gh/thr32423/mb3d-bindings/main?urlpath=explorer%2F):
+  turn and zoom a fractal in the browser, with the same steps shown as
+  Python and JavaScript code.
+* [The notebook](https://mybinder.org/v2/gh/thr32423/mb3d-bindings/main?urlpath=lab%2Ftree%2Fnotebook%2Fmb3d.ipynb):
+  `mb3d serve` by hand, the Python and JavaScript examples below, sliders.
+  ([In Colab](https://colab.research.google.com/github/thr32423/mb3d-bindings/blob/main/notebook/mb3d.ipynb),
+  with a Google account.)
+
+That machine has no graphics card and little processor: the pictures are
+the same, slower.
 
 ## Python
 
