@@ -5,96 +5,57 @@ from other languages. EXPERIMENTAL: everything here may still change.
 
 | folder | what | needs |
 |---|---|---|
-| [python/](python) | the module `mb3d` for Python | the program `mb3d`, Python 3.9+ |
-| [js/](js) | the module `mb3d` for Node.js | the program `mb3d`, Node 18+ |
-| [ffi/](ffi) | `libmb3d`, a C library, with a C and a Python example | Rust to build it |
+| [python/](python) | the module `mb3d` for Python | Python 3.9+ |
+| [js/](js) | the module `mb3d` for Node.js | Node 18+ |
+| [ffi/](ffi) | `libmb3d`, a C library (C, C++, C#, ...) | nothing |
+| [node/](node) | the Node.js add-on under the JavaScript module | (part of its package) |
 | [demos/](demos) | web pages that use the modules | one of the modules |
 | [notebook/](notebook) | a Jupyter notebook: the examples in Python and JavaScript, sliders; runs online | Jupyter |
 
-The Python and JavaScript modules start the program `mb3d serve` and talk
-to it (mb3d-rs: docs/API.md); they have no other dependencies. The C library
-holds the engine itself, for programs that want the pixels in their own
-memory.
+Each package holds the engine itself, built from mb3d-rs, with its formulas
+and maps: the program `mb3d` is not needed and nothing is started. A picture
+is calculated inside your own program.
 
-## Installing the program mb3d
+## Installing
 
-The modules need the program `mb3d` of mb3d-rs, version 0.3.10 or later
-(`mb3d --version` tells; an older one has no `mb3d serve`). Installing the
-latest release over an older one updates it.
+Packages for Linux (x64), Windows (x64) and macOS (Apple silicon and Intel)
+are on the [releases page](https://github.com/thr32423/mb3d-bindings/releases/latest);
+they are not on PyPI or npm yet.
 
-**Linux and macOS**, one line: fetches the latest release into `~/mb3d-rs`,
-checks it and makes `mb3d` a command (run it again later to update):
+**Python** (3.9 or later), any of the systems:
 
-    curl -fsSL https://raw.githubusercontent.com/thr32423/mb3d-rs/master/download.sh | sh
+    pip install mb3d --find-links https://github.com/thr32423/mb3d-bindings/releases/expanded_assets/v0.2.0
 
-**Debian, Ubuntu, Mint**: download
-[mb3d-rs-linux-x64.deb](https://github.com/thr32423/mb3d-rs/releases/latest/download/mb3d-rs-linux-x64.deb), then
+**JavaScript** (Node.js 18 or later), the line of your system:
 
-    sudo apt install ./mb3d-rs-linux-x64.deb
+    npm install https://github.com/thr32423/mb3d-bindings/releases/download/v0.2.0/mb3d-0.2.0-linux-x64.tgz
+    npm install https://github.com/thr32423/mb3d-bindings/releases/download/v0.2.0/mb3d-0.2.0-windows-x64.tgz
+    npm install https://github.com/thr32423/mb3d-bindings/releases/download/v0.2.0/mb3d-0.2.0-macos-arm64.tgz
+    npm install https://github.com/thr32423/mb3d-bindings/releases/download/v0.2.0/mb3d-0.2.0-macos-x64.tgz
 
-**Fedora, RHEL, Rocky** (openSUSE: `zypper` instead of `dnf`): download
-[mb3d-rs-linux-x64.rpm](https://github.com/thr32423/mb3d-rs/releases/latest/download/mb3d-rs-linux-x64.rpm), then
+**C**: unpack `libmb3d-0.2.0-SYSTEM.tar.gz` of the releases page: the library
+(`libmb3d.so`, `libmb3d.dylib`, `mb3d.dll` with `mb3d.dll.lib`), the header
+`mb3d.h` and the formula and map folders, which a program names to the
+library once (`mb3d_add_formula_folder`, `mb3d_add_map_folder`).
+[ffi/](ffi) tells how to build a program with it, and how to build the
+library itself.
 
-    sudo dnf install ./mb3d-rs-linux-x64.rpm
+**Rust**: the engine is the crate `mb3d` of mb3d-rs, without its desktop
+application; in `Cargo.toml`
 
-**Windows**: unpack
-[mb3d-rs-windows-x64.zip](https://github.com/thr32423/mb3d-rs/releases/latest/download/mb3d-rs-windows-x64.zip)
-into a folder of your choice; the program is `mb3d.exe` in it.
+    mb3d = { git = "https://github.com/thr32423/mb3d-rs", tag = "v0.3.10", default-features = false, features = ["gpu", "jit"] }
 
-**By hand** (any system): unpack the archive of your system from the
-[latest release](https://github.com/thr32423/mb3d-rs/releases/latest); the
-program `mb3d` is in the unpacked folder. On macOS run
-`xattr -dr com.apple.quarantine .` in that folder once.
+and `mb3d::api` in the code ([docs/API.md](https://github.com/thr32423/mb3d-rs/blob/master/docs/API.md)).
 
-When `mb3d` is not a command (Windows, unpacked by hand, or an older one
-comes first on the PATH), tell the modules where it is:
-
-    export MB3D=/path/to/mb3d                  (Windows: set MB3D=C:\path\to\mb3d.exe)
-
-or in the code: `mb3d.Engine(program="/path/to/mb3d")`,
-`Engine.start({ program: "/path/to/mb3d" })`.
-
-## Installing the modules
-
-They are not on PyPI or npm yet; they install from this repository.
-
-**Python** (3.9 or later):
-
-    pip install "git+https://github.com/thr32423/mb3d-bindings#subdirectory=python"
-
-then `import mb3d`. Without pip: copy the folder [python/mb3d](python/mb3d)
-next to your program.
-
-**JavaScript** (Node.js 18 or later):
-
-    git clone https://github.com/thr32423/mb3d-bindings
-    npm install ./mb3d-bindings/js
-
-then `import { Engine } from "mb3d";`. Without npm: copy the one file
-[js/mb3d.mjs](js/mb3d.mjs) and import it by its path.
-
-**C library** (needs [Rust](https://rustup.rs); does not need the program
-`mb3d`, the engine is built into it):
-
-    git clone https://github.com/thr32423/mb3d-bindings
-    cd mb3d-bindings/ffi
-    cargo build --release
-
-gives `target/release/libmb3d.so` (macOS `libmb3d.dylib`, Windows
-`mb3d.dll`); the header is [ffi/include/mb3d.h](ffi/include/mb3d.h). A C
-program is built and run with
-
-    cc program.c -Iinclude -Ltarget/release -lmb3d -o program
-    LD_LIBRARY_PATH=target/release ./program
-
-([ffi/](ffi) has an example in C and one in Python.)
+**Other languages**: load `libmb3d`, or start the program `mb3d serve` of
+mb3d-rs and talk to it in JSON lines (the same docs/API.md).
 
 ## Try it online
 
 [The notebook](https://mybinder.org/v2/gh/thr32423/mb3d-bindings/main?urlpath=lab%2Ftree%2Fnotebook%2Fmb3d.ipynb)
 on [mybinder.org](https://mybinder.org): no account, nothing to install;
-the start takes a minute or two. Choose Run > Run All Cells: `mb3d serve`
-by hand, the Python and JavaScript examples below, sliders.
+the start takes a minute or two. Choose Run > Run All Cells: the Python
+and JavaScript examples below, sliders.
 ([In Colab](https://colab.research.google.com/github/thr32423/mb3d-bindings/blob/main/notebook/mb3d.ipynb),
 with a Google account.)
 
@@ -121,6 +82,7 @@ That machine has no graphics card: the pictures are the same, slower.
 
 ## C
 
+    mb3d_add_formula_folder("M3Formulas");            /* the folders that came with the library */
     mb3d_scene *scene = mb3d_preset("Amazing Box");
     mb3d_scene_set(scene, "zoom = 0.3\niterations = 12");
     mb3d_scene_resize(scene, 1280, 960);
@@ -136,15 +98,24 @@ open parameter files, save pictures. [demos/](demos) has more.
 
 ## Licence
 
-Everything here is under the MIT licence ([LICENSE](LICENSE)), except
-[ffi/](ffi): the C library is built from the engine and, like it, is under
-the LGPL 2.1 ([ffi/LICENSE](ffi/LICENSE)).
+The modules, demos and the notebook are under the MIT licence
+([LICENSE](LICENSE)). The C library ([ffi/](ffi)) and the Node.js add-on
+([node/](node)) are built from the engine and, like it, are under the LGPL
+2.1 ([ffi/LICENSE](ffi/LICENSE)): a program of any licence may load them;
+changes to the engine are published under the LGPL. The formulas and maps
+in the packages come from Mandelbulb3D and its community (their credits are
+in the folders).
 
-The engine itself (the program `mb3d`) is LGPL 2.1 whichever part is used: a
-program of any licence may start it or load the library; changes to the
-engine are published under the LGPL.
+## Building and tests
 
-## Tests
+Needs [Rust](https://rustup.rs). The modules find what was built here.
 
+    cargo build --release --manifest-path ffi/Cargo.toml       # libmb3d
+    cargo build --release --manifest-path node/Cargo.toml      # the Node.js add-on
     cd python && python -m unittest discover -s tests
     cd js && node --test
+
+`python tools/package.py --system linux-x64 --data FOLDER` packs the three
+packages into `dist/` (FOLDER: an unpacked mb3d-rs release, for its formula
+and map folders); the workflow in `.github/` does it for every system and a
+tag `vX.Y.Z` publishes them.

@@ -12,7 +12,7 @@ use std::cell::RefCell;
 use std::ffi::{c_char, c_int, c_void, CStr, CString};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
 
 thread_local! {
@@ -103,6 +103,19 @@ pub extern "C" fn mb3d_finish() {
 pub unsafe extern "C" fn mb3d_add_formula_folder(dir: *const c_char) -> c_int {
     guard(|| {
         api::add_formula_folder(Path::new(text(dir, "the folder")?));
+        Ok(())
+    })
+    .map_or(-1, |_| 0)
+}
+
+/// A further folder with map pictures.
+///
+/// # Safety
+/// `dir` is a zero-terminated text.
+#[no_mangle]
+pub unsafe extern "C" fn mb3d_add_map_folder(dir: *const c_char) -> c_int {
+    guard(|| {
+        api::add_map_folder(Path::new(text(dir, "the folder")?));
         Ok(())
     })
     .map_or(-1, |_| 0)
@@ -341,5 +354,74 @@ pub unsafe extern "C" fn mb3d_picture_save_png(picture: *const Picture, path: *c
 pub unsafe extern "C" fn mb3d_picture_free(picture: *mut Picture) {
     if !picture.is_null() {
         drop(Box::from_raw(picture));
+    }
+}
+
+/// The requests of `mb3d serve` (mb3d-rs: docs/API.md) without the program:
+/// a session keeps the scenes its requests open.
+pub struct Session {
+    server: Mutex<engine::serve::Server>,
+    /// counts the calls of `mb3d_session_cancel`
+    cancels: AtomicU64,
+}
+
+/// Told every line that comes before a request's answer (progress), as JSON.
+/// Called from the engine's threads, one call at a time.
+pub type Mb3dEvent = Option<unsafe extern "C" fn(user: *mut c_void, json: *const c_char)>;
+
+/// A new session; free it with `mb3d_session_free`.
+#[no_mangle]
+pub extern "C" fn mb3d_session_new() -> *mut Session {
+    boxed(guard(|| Ok(Session { server: Mutex::default(), cancels: AtomicU64::new(0) })))
+}
+
+/// One request of `mb3d serve` as JSON (`{"op":"open","preset":"Amazing Box"}`);
+/// the answer as JSON, to free with `mb3d_string_free`.  A request that
+/// failed answers `{"ok":false,"error":...}`; null only for a request that
+/// is not JSON (`mb3d_last_error`).  One request at a time: a second thread
+/// waits.
+///
+/// # Safety
+/// `session` is a session of this library, `request` a zero-terminated
+/// text; `event` is null or a function that may be called from other
+/// threads with `user`.
+#[no_mangle]
+pub unsafe extern "C" fn mb3d_session_request(session: *const Session, request: *const c_char, event: Mb3dEvent, user: *mut c_void) -> *mut c_char {
+    guard(|| {
+        let session = session.as_ref().ok_or("the session is null")?;
+        let request = engine::json::parse(text(request, "the request")?)?;
+        let user = Mutex::new(User(user));
+        let emit = |line: engine::json::Value| {
+            let (Some(call), Ok(u), Ok(line)) = (event, user.lock(), CString::new(line.to_json())) else { return };
+            // SAFETY: the caller's function with the caller's pointer
+            unsafe { call(u.0, line.as_ptr()) }
+        };
+        let before = session.cancels.load(Ordering::SeqCst);
+        let cancelled = || session.cancels.load(Ordering::SeqCst) != before;
+        // (a request that panicked leaves the scenes as they were: go on)
+        let mut server = session.server.lock().unwrap_or_else(|e| e.into_inner());
+        CString::new(server.handle(&request, &emit, &cancelled).to_json()).map_err(|e| e.to_string())
+    })
+    .map_or(std::ptr::null_mut(), CString::into_raw)
+}
+
+/// Stops the session's `render` that is running (from another thread): it
+/// answers "cancelled".
+///
+/// # Safety
+/// `session` is null or a session of this library.
+#[no_mangle]
+pub unsafe extern "C" fn mb3d_session_cancel(session: *const Session) {
+    if let Some(s) = session.as_ref() {
+        s.cancels.fetch_add(1, Ordering::SeqCst);
+    }
+}
+
+/// # Safety
+/// `session` is null or a session of this library, not used afterwards.
+#[no_mangle]
+pub unsafe extern "C" fn mb3d_session_free(session: *mut Session) {
+    if !session.is_null() {
+        drop(Box::from_raw(session));
     }
 }

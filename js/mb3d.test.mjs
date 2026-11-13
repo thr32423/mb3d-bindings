@@ -1,4 +1,4 @@
-// node --test   (in js/; MB3D=/path/to/mb3d)
+// node --test   (in js/; the add-on: built in ../node, or MB3D_NODE=/path/to/mb3d.node)
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, stat, readFile, rm } from "node:fs/promises";
@@ -66,6 +66,6 @@ test("a render is cancelled", async () => {
   assert.equal((await s.render({ width: 64 })).width, 64, "the engine goes on after a cancel");
 });
 
-test("a missing program is named", async () => {
-  await assert.rejects(Engine.start({ program: "/no/such/mb3d" }), /not found/);
+test("a missing add-on is named", async () => {
+  await assert.rejects(Engine.start({ addon: "/no/such/mb3d.node" }), /no such add-on/);
 });

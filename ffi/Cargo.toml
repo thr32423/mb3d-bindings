@@ -1,6 +1,6 @@
 [package]
 name = "mb3d-ffi"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "mb3d-rs as a C library (libmb3d): 3D fractals of Mandelbulb3D for C, C++, C#, Python and others"
 license = "LGPL-2.1-only"

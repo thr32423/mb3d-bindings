@@ -1,30 +1,70 @@
 // mb3d from JavaScript (Node.js): 3D fractals of Mandelbulb3D, calculated
 // by mb3d-rs.
 //
-//     import { Engine } from "./mb3d.mjs";
+//     import { Engine } from "mb3d";
 //     const engine = await Engine.start();
 //     const scene = await engine.preset("Amazing Box");
 //     await scene.set({ zoom: 0.3, iterations: 12 });
 //     await scene.render({ width: 1280, file: "box.png" });
 //     engine.close();
 //
-// The engine is the program `mb3d` (mb3d-rs), started as `mb3d serve` and
-// kept running: this module only talks to it.  It is looked for in the
-// `program` option, the environment variable MB3D, then on the PATH.
-// No packages needed.  EXPERIMENTAL, like `mb3d serve`.
+// The engine is a Node.js add-on (mb3d.node), loaded into this program:
+// nothing is started and nothing else is installed.  An installed package
+// carries the add-on and the formula and map folders; otherwise it is looked
+// for in the `addon` option, the environment variable MB3D_NODE, then in
+// this repository's node/target/release.  A picture is calculated on one of
+// Node's worker threads.  EXPERIMENTAL.
 
-import { spawn } from "node:child_process";
-import { createInterface } from "node:readline";
-import { resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 export const PROTOCOL = 1;
 
 export class Mb3dError extends Error {}
 
 const value = (v) => (Array.isArray(v) ? v.map(value).join(", ") : String(v));
+const here = dirname(fileURLToPath(import.meta.url));
+const built = { win32: "mb3d_node.dll", darwin: "libmb3d_node.dylib" }[process.platform] || "libmb3d_node.so";
+const addons = new Map();
+
+/** The path of the add-on, or an error that says where it was looked for. */
+export function findAddon(addon) {
+  for (const candidate of [addon, process.env.MB3D_NODE]) {
+    if (!candidate) continue;
+    if (existsSync(candidate)) return resolve(candidate);
+    throw new Mb3dError(`${candidate}: no such add-on`);
+  }
+  for (const candidate of [join(here, "mb3d.node"), join(here, "..", "node", "target", "release", built)]) if (existsSync(candidate)) return candidate;
+  throw new Mb3dError("the add-on mb3d.node was not found: install the package for this system, pass { addon } or set the environment variable MB3D_NODE");
+}
+
+// The add-on, loaded once, with the formula and map folders that came with the package.
+function load(path) {
+  let addon = addons.get(path);
+  if (!addon) {
+    const module = { exports: {} };
+    try {
+      process.dlopen(module, path); // (require() wants the name to end in .node)
+    } catch (e) {
+      throw new Mb3dError(`${path}: ${e.message}`);
+    }
+    addon = module.exports;
+    const data = join(here, "data");
+    for (const [folder, add] of [["M3Formulas", addon.addFormulaFolder], ["EM_JIT_M3Formulas", addon.addFormulaFolder], ["M3Maps", addon.addMapFolder]])
+      if (existsSync(join(data, folder))) add(join(data, folder));
+    addons.set(path, addon);
+  }
+  return addon;
+}
 
 export class Engine {
-  /** Starts the engine: { program, cpu, formulas, maps }. */
+  /**
+   * Starts the engine: { cpu, formulas, maps, addon }.
+   * cpu: calculate on the processor only (otherwise the graphics card helps
+   * where there is one).  formulas, maps: further folders with formula files
+   * (.m3f) and map pictures.  addon: the path of mb3d.node.
+   */
   static async start(options = {}) {
     const engine = new Engine(options);
     const hello = await engine.ask({ op: "hello" });
@@ -34,60 +74,46 @@ export class Engine {
       engine.close();
       throw new Mb3dError(`mb3d ${hello.version} speaks protocol ${hello.protocol}, this module protocol ${PROTOCOL}`);
     }
+    await engine.ask({ op: "gpu", on: !options.cpu });
     return engine;
   }
 
-  constructor({ program, cpu, formulas, maps } = {}) {
-    const args = ["serve"];
-    if (cpu) args.push("--cpu");
-    if (formulas) args.push("--formulas", formulas);
-    if (maps) args.push("--maps", maps);
-    this.waiting = new Map();
-    this.next = 0;
-    this.ended = null;
-    this.proc = spawn(program || process.env.MB3D || "mb3d", args, { stdio: ["pipe", "pipe", "ignore"] });
-    const end = (why) => {
-      this.ended = this.ended || why;
-      for (const w of this.waiting.values()) w.reject(new Mb3dError(this.ended));
-      this.waiting.clear();
-    };
-    this.proc.on("error", (e) =>
-      end(e.code === "ENOENT" ? "the program mb3d was not found: pass { program }, set the environment variable MB3D, or put it on the PATH" : String(e)),
-    );
-    this.proc.on("exit", () => end("the engine has ended"));
-    this.proc.stdin.on("error", () => {});
-    createInterface({ input: this.proc.stdout }).on("line", (line) => {
-      const answer = JSON.parse(line);
-      const w = this.waiting.get(answer.id);
-      if (!w) return; // the answer to a cancel
-      if (answer.event === "progress") {
-        if (w.progress) w.progress(answer.stage, answer.done, answer.total);
-        return;
-      }
-      this.waiting.delete(answer.id);
-      if (answer.ok) w.resolve(answer);
-      else w.reject(new Mb3dError(answer.error || "unknown error"));
-    });
+  constructor({ addon, formulas, maps } = {}) {
+    this.addon = load(findAddon(addon));
+    if (formulas) this.addon.addFormulaFolder(resolve(formulas));
+    if (maps) this.addon.addMapFolder(resolve(maps));
+    this.session = new this.addon.Session();
   }
 
-  /** Sends a request of `mb3d serve` and gives its answer. */
-  ask(request, progress) {
-    return new Promise((resolve, reject) => {
-      if (this.ended) return reject(new Mb3dError(this.ended));
-      const id = ++this.next;
-      this.waiting.set(id, { resolve, reject, progress });
-      this.proc.stdin.write(JSON.stringify({ ...request, id }) + "\n");
-    });
+  /** Sends a request of `mb3d serve` (mb3d-rs: docs/API.md) and gives its answer. */
+  async ask(request, progress) {
+    if (!this.session) throw new Mb3dError("the engine is closed");
+    const event = progress
+      ? (line) => {
+          const e = JSON.parse(line);
+          if (e.event === "progress") progress(e.stage, e.done, e.total);
+        }
+      : undefined;
+    let answer;
+    try {
+      answer = JSON.parse(await this.session.request(JSON.stringify(request), event));
+    } catch (e) {
+      throw new Mb3dError(e.message);
+    }
+    if (!answer.ok) throw new Mb3dError(answer.error || "unknown error");
+    return answer;
   }
 
-  /** Ends the engine. */
+  /** Ends the engine: its scenes are forgotten. */
   close() {
-    this.proc.stdin.end();
+    if (!this.session) return;
+    this.session = null;
+    this.addon.finish(); // (waits for the graphics card's compiles)
   }
 
   /** Stops the pictures asked for so far: their render rejects with "cancelled". */
   cancel() {
-    if (!this.ended) this.proc.stdin.write('{"op":"cancel","id":"cancel"}\n');
+    if (this.session) this.session.cancel();
   }
 
   /** Calculate on the graphics card (the default) or the processor. */

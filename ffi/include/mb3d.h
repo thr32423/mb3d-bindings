@@ -47,6 +47,8 @@ void mb3d_finish(void);
 
 /* A further folder with formula files (.m3f). */
 int mb3d_add_formula_folder(const char *dir);
+/* A further folder with map pictures. */
+int mb3d_add_map_folder(const char *dir);
 
 /* A scene from a parameter file (.m3p, .m3i, MB3D text parameters, a scene
  * text), from a scene text, from a file's bytes (name tells the kind, like a
@@ -101,6 +103,26 @@ const uint16_t *mb3d_picture_depth(const mb3d_picture *picture);
 double mb3d_picture_seconds(const mb3d_picture *picture);
 int mb3d_picture_save_png(const mb3d_picture *picture, const char *path);
 void mb3d_picture_free(mb3d_picture *picture);
+
+/* The requests of `mb3d serve` (mb3d-rs: docs/API.md) without the program,
+ * for wrappers in other languages: a session keeps the scenes its requests
+ * open.  The Python module is built on these four functions. */
+typedef struct mb3d_session mb3d_session;
+
+/* Told every line that comes before a request's answer (progress), as JSON.
+ * Called from the engine's threads, one call at a time. */
+typedef void (*mb3d_event)(void *user, const char *json);
+
+mb3d_session *mb3d_session_new(void);
+/* One request as JSON ({"op":"open","preset":"Amazing Box"}); the answer as
+ * JSON, to free with mb3d_string_free.  A request that failed answers
+ * {"ok":false,"error":...}; NULL only for a request that is not JSON.  One
+ * request at a time: a second thread waits.  event may be NULL. */
+char *mb3d_session_request(const mb3d_session *session, const char *request, mb3d_event event, void *user);
+/* Stops the session's render that is running (from another thread): it
+ * answers "cancelled". */
+void mb3d_session_cancel(const mb3d_session *session);
+void mb3d_session_free(mb3d_session *session);
 
 #ifdef __cplusplus
 }

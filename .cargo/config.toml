@@ -1,0 +1,4 @@
+# Windows: the C runtime is linked into the library and the add-on, so they
+# do not need the Visual C++ redistributable DLLs (as mb3d-rs does)
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

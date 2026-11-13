@@ -5,7 +5,9 @@ server asks `mb3d` through the Python or JavaScript module. Each demo has
 both servers; they do the same. They listen on this computer only
 (127.0.0.1).
 
-Set `MB3D` to the program first (see the main README).
+They run from this repository and use what was built in it: build the
+library or the add-on first (main README: Building), or set `LIBMB3D` /
+`MB3D_NODE` to the files of an installed package.
 
 ## minimal: one picture
 

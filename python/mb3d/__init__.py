@@ -7,63 +7,103 @@
         scene.set(zoom=0.3, iterations=12)
         scene.render(width=1280, file="box.png")
 
-The engine is the program `mb3d` (mb3d-rs), started as `mb3d serve` and
-kept running: this module only talks to it.  It is looked for in the
-`program` argument, the environment variable MB3D, then on the PATH.
-Only Python's standard library is used.  EXPERIMENTAL, like `mb3d serve`.
+The engine is the library `libmb3d`, loaded into this program: nothing is
+started and nothing else is installed.  An installed package carries the
+library and the formula and map folders; otherwise it is looked for in the
+`library` argument, the environment variable LIBMB3D, then in this
+repository's ffi/target/release.  Only Python's standard library is used.
+EXPERIMENTAL.
 """
 
 import base64
+import ctypes
 import json
 import os
-import shutil
-import subprocess
+import sys
 import threading
 
-__all__ = ["Engine", "Scene", "Picture", "Mb3dError", "find_program"]
-__version__ = "0.1.0"
+__all__ = ["Engine", "Scene", "Picture", "Mb3dError", "find_library"]
+__version__ = "0.2.0"
 
 PROTOCOL = 1
+
+_here = os.path.dirname(os.path.abspath(__file__))
+_NAME = {"win32": "mb3d.dll", "darwin": "libmb3d.dylib"}.get(sys.platform, "libmb3d.so")
+_EVENT = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_char_p)
+_lock = threading.Lock()
+_libraries = {}
 
 
 class Mb3dError(Exception):
     """What the engine answered instead of a result."""
 
 
-def find_program(program=None):
-    """The path of the `mb3d` program, or an error that says where it was looked for."""
-    for candidate in (program, os.environ.get("MB3D")):
+def find_library(library=None):
+    """The path of the library libmb3d, or an error that says where it was looked for."""
+    for candidate in (library, os.environ.get("LIBMB3D")):
         if candidate:
             if os.path.isfile(candidate):
-                return candidate
-            raise Mb3dError(f"{candidate}: no such program")
-    found = shutil.which("mb3d")
-    if found:
-        return found
-    raise Mb3dError("the program mb3d was not found: pass Engine(program=...), set the environment variable MB3D, or put it on the PATH")
+                return os.path.abspath(candidate)
+            raise Mb3dError(f"{candidate}: no such library")
+    for folder in (os.path.join(_here, "lib"), os.path.join(_here, "..", "..", "ffi", "target", "release")):
+        candidate = os.path.join(folder, _NAME)
+        if os.path.isfile(candidate):
+            return os.path.abspath(candidate)
+    raise Mb3dError(f"the library {_NAME} was not found: install the package for this system, pass Engine(library=...) or set the environment variable LIBMB3D")
+
+
+def _load(path):
+    """The library, loaded once, with the formula and map folders that came with the package."""
+    with _lock:
+        lib = _libraries.get(path)
+        if lib is None:
+            lib = ctypes.CDLL(path)
+            P, text = ctypes.c_void_p, ctypes.c_char_p
+            for name, result, arguments in (
+                ("mb3d_last_error", text, []),
+                ("mb3d_finish", None, []),
+                ("mb3d_add_formula_folder", ctypes.c_int, [text]),
+                ("mb3d_add_map_folder", ctypes.c_int, [text]),
+                ("mb3d_session_new", P, []),
+                ("mb3d_session_request", P, [P, text, _EVENT, P]),
+                ("mb3d_session_cancel", None, [P]),
+                ("mb3d_session_free", None, [P]),
+                ("mb3d_string_free", None, [P]),
+            ):
+                f = getattr(lib, name)
+                f.restype, f.argtypes = result, arguments
+            data = os.path.join(_here, "data")
+            for folder, add in (("M3Formulas", lib.mb3d_add_formula_folder), ("EM_JIT_M3Formulas", lib.mb3d_add_formula_folder), ("M3Maps", lib.mb3d_add_map_folder)):
+                if os.path.isdir(os.path.join(data, folder)):
+                    add(os.fsencode(os.path.join(data, folder)))
+            _libraries[path] = lib
+        return lib
 
 
 class Engine:
-    """A running `mb3d serve`.  Close it (or use `with`) when done."""
+    """The engine with the scenes it has open.  Close it (or use `with`) when done.
 
-    def __init__(self, program=None, cpu=False, formulas=None, maps=None):
-        args = [find_program(program), "serve"]
-        if cpu:
-            args.append("--cpu")
+    cpu: calculate on the processor only (otherwise the graphics card helps
+    where there is one).  formulas, maps: further folders with formula files
+    (.m3f) and map pictures.  library: the path of libmb3d."""
+
+    def __init__(self, library=None, cpu=False, formulas=None, maps=None):
+        self._lib = _load(find_library(library))
         if formulas:
-            args += ["--formulas", str(formulas)]
+            self._lib.mb3d_add_formula_folder(os.fsencode(os.path.abspath(os.fspath(formulas))))
         if maps:
-            args += ["--maps", str(maps)]
-        self._proc = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            self._lib.mb3d_add_map_folder(os.fsencode(os.path.abspath(os.fspath(maps))))
+        self._session = self._lib.mb3d_session_new()
+        if not self._session:
+            raise Mb3dError(self._lib.mb3d_last_error().decode())
         self._ask_lock = threading.Lock()
-        self._write_lock = threading.Lock()
-        self._next = 0
         hello = self._ask({"op": "hello"})
         self.version = hello["version"]
         self.gpu = hello["gpu"]
         if hello["protocol"] != PROTOCOL:
             self.close()
             raise Mb3dError(f"mb3d {self.version} speaks protocol {hello['protocol']}, this module protocol {PROTOCOL}")
+        self._ask({"op": "gpu", "on": not cpu})
 
     def __enter__(self):
         return self
@@ -72,53 +112,46 @@ class Engine:
         self.close()
 
     def close(self):
-        """Ends the engine."""
-        proc, self._proc = self._proc, None
-        if proc is None:
-            return
-        try:
-            proc.stdin.close()
-            proc.wait(timeout=5)
-        except Exception:
-            proc.kill()
-            proc.wait()
-        proc.stdout.close()
+        """Ends the engine: its scenes are forgotten."""
+        with self._ask_lock:
+            session, self._session = self._session, None
+            if session:
+                self._lib.mb3d_session_free(session)
+                self._lib.mb3d_finish()  # (waits for the graphics card's compiles)
 
-    def _write(self, request):
-        if self._proc is None:
-            raise Mb3dError("the engine is closed")
-        line = (json.dumps(request) + "\n").encode()
-        with self._write_lock:
-            try:
-                self._proc.stdin.write(line)
-                self._proc.stdin.flush()
-            except OSError as e:
-                raise Mb3dError(f"the engine has ended ({e})") from None
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
 
     def _ask(self, request, progress=None):
         with self._ask_lock:
-            self._next += 1
-            request = dict(request, id=self._next)
-            self._write(request)
-            while True:
-                line = self._proc.stdout.readline()
-                if not line:
-                    raise Mb3dError("the engine has ended")
-                answer = json.loads(line)
-                if answer.get("id") != request["id"]:
-                    continue  # the answer to a cancel
-                if answer.get("event") == "progress":
-                    if progress:
-                        progress(answer["stage"], answer["done"], answer["total"])
-                    continue
-                if not answer.get("ok"):
-                    raise Mb3dError(answer.get("error", "unknown error"))
-                return answer
+            if not self._session:
+                raise Mb3dError("the engine is closed")
+
+            def event(_, line):
+                if progress:
+                    e = json.loads(line)
+                    if e.get("event") == "progress":
+                        progress(e["stage"], e["done"], e["total"])
+
+            pointer = self._lib.mb3d_session_request(self._session, json.dumps(request).encode(), _EVENT(event), None)
+            if not pointer:
+                raise Mb3dError(self._lib.mb3d_last_error().decode())
+            try:
+                answer = json.loads(ctypes.string_at(pointer))
+            finally:
+                self._lib.mb3d_string_free(pointer)
+            if not answer.get("ok"):
+                raise Mb3dError(answer.get("error", "unknown error"))
+            return answer
 
     def cancel(self):
         """Stops the picture being calculated (from another thread): its
         render raises Mb3dError("cancelled")."""
-        self._write({"op": "cancel", "id": "cancel"})
+        if self._session:
+            self._lib.mb3d_session_cancel(self._session)
 
     def use_gpu(self, on):
         """Calculate on the graphics card (the default) or the processor."""

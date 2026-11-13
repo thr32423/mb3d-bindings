@@ -1,34 +1,166 @@
-name: CI
+name: Build
 
+# Builds the C library and the Node.js add-on for every system, packs them
+# with the modules (tools/package.py) and tries the packages.  A tag vX.Y.Z
+# publishes them as a release.
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
 
 permissions:
   contents: read
 
 jobs:
-  modules:
-    name: Python and JavaScript modules
-    runs-on: ubuntu-latest
+  build:
+    name: ${{ matrix.system }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, system: linux-x64, lib: libmb3d.so, addon: libmb3d_node.so, try: true }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, system: windows-x64, lib: mb3d.dll, addon: mb3d_node.dll, try: true }
+          - { os: macos-latest, target: aarch64-apple-darwin, system: macos-arm64, lib: libmb3d.dylib, addon: libmb3d_node.dylib, try: true }
+          # Intel Macs: cross-compiled on the Apple silicon runner, not run
+          - { os: macos-latest, target: x86_64-apple-darwin, system: macos-x64, lib: libmb3d.dylib, addon: libmb3d_node.dylib, try: false }
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
-      - name: The program mb3d (the latest release of mb3d-rs)
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            ffi
+            node
+          key: ${{ matrix.target }}
+      # Windows: a build script of the engine's graphics crates asks the
+      # GitHub API with curl; without a token the shared runners hit the
+      # anonymous rate limit (as in mb3d-rs's own workflow)
+      - name: GitHub token for curl (Windows)
+        if: runner.os == 'Windows'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          curl -sSfL -o mb3d.tar.gz https://github.com/thr32423/mb3d-rs/releases/latest/download/mb3d-rs-linux-x64.tar.gz
-          curl -sSfL -o SHA256SUMS https://github.com/thr32423/mb3d-rs/releases/latest/download/SHA256SUMS
-          grep ' mb3d-rs-linux-x64.tar.gz$' SHA256SUMS | sed 's/mb3d-rs-linux-x64.tar.gz/mb3d.tar.gz/' | sha256sum -c -
-          mkdir engine && tar xzf mb3d.tar.gz -C engine --strip-components=1
-          echo "MB3D=$PWD/engine/mb3d" >> "$GITHUB_ENV"
-          engine/mb3d --version
+          d="$RUNNER_TEMP/curlhome"
+          mkdir -p "$d"
+          printf 'header = "Authorization: Bearer %s"\n' "$GH_TOKEN" > "$d/.curlrc"
+          cp "$d/.curlrc" "$d/_curlrc"
+          echo "CURL_HOME=$d" >> "$GITHUB_ENV"
+      # Linux: built with zig against glibc 2.28, so the packages also work
+      # on older distributions (as the program mb3d is built)
+      - name: Zig (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          python3 -m venv "$RUNNER_TEMP/zig"
+          "$RUNNER_TEMP/zig/bin/pip" install ziglang cargo-zigbuild
+          echo "$RUNNER_TEMP/zig/bin" >> "$GITHUB_PATH"
+      - name: Build the library and the add-on
+        run: |
+          for crate in ffi node; do
+            if [ "${{ runner.os }}" = "Linux" ]; then
+              cargo zigbuild --release --manifest-path $crate/Cargo.toml --target ${{ matrix.target }}.2.28
+            else
+              cargo build --release --manifest-path $crate/Cargo.toml --target ${{ matrix.target }}
+            fi
+          done
+          echo "LIBMB3D=$PWD/ffi/target/${{ matrix.target }}/release/${{ matrix.lib }}" >> "$GITHUB_ENV"
+          echo "MB3D_NODE=$PWD/node/target/${{ matrix.target }}/release/${{ matrix.addon }}" >> "$GITHUB_ENV"
+      - name: No symbol needs a newer glibc than 2.28 (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          for file in "$LIBMB3D" "$MB3D_NODE"; do
+            v=$(objdump -T "$file" | grep -oE 'GLIBC_[0-9.]+' | sort -t. -k2,2n -k3,3n -u | tail -1)
+            echo "$file needs $v"
+            case "$v" in GLIBC_2.[0-9]|GLIBC_2.1[0-9]|GLIBC_2.2[0-8]) ;; *) echo "::error::$file needs $v"; exit 1;; esac
+          done
+      # the formula and map folders of the engine's release (the version
+      # ffi/Cargo.toml names), checked against its SHA256SUMS
+      - name: The engine's formulas and maps
+        run: |
+          tag=$(sed -n 's/.*mb3d-rs", tag = "\(v[^"]*\)".*/\1/p' ffi/Cargo.toml)
+          release=https://github.com/thr32423/mb3d-rs/releases/download/$tag
+          curl -sSfL -o mb3d-rs-linux-x64.tar.gz $release/mb3d-rs-linux-x64.tar.gz
+          curl -sSfL $release/SHA256SUMS | grep ' mb3d-rs-linux-x64.tar.gz$' > sum
+          if command -v sha256sum > /dev/null; then sha256sum -c sum; else shasum -a 256 -c sum; fi
+          mkdir engine && tar xzf mb3d-rs-linux-x64.tar.gz -C engine --strip-components=1
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Python tests
-        run: cd python && python -m unittest discover -s tests -v
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Pack
+        run: python tools/package.py --system ${{ matrix.system }} --data engine --lib "$LIBMB3D" --addon "$MB3D_NODE"
+      - name: Python tests
+        if: matrix.try
+        run: cd python && python -m unittest discover -s tests -v
       - name: JavaScript tests
+        if: matrix.try
         run: cd js && node --test
+      # the packages as people get them: installed into an empty place,
+      # without the repository, rendering a formula of the formula folder
+      - name: Try the packages
+        if: matrix.try
+        run: |
+          unset LIBMB3D MB3D_NODE
+          dist="$PWD/dist"
+          mkdir "$RUNNER_TEMP/try" && cd "$RUNNER_TEMP/try"
+          python -m venv venv
+          py=venv/bin/python; [ -x $py ] || py=venv/Scripts/python
+          $py -m pip install -q "$dist"/mb3d-*.whl
+          $py -c "
+          import mb3d
+          with mb3d.Engine(cpu=True) as e:
+              print(e.version, len(e.formulas()), 'formulas')
+              print(e.preset('ABoxModKali').render(width=96))
+          "
+          npm init -y > /dev/null
+          npm install "$dist"/mb3d-*.tgz
+          cat > try.mjs <<'JS'
+          import { Engine } from "mb3d";
+          const e = await Engine.start({ cpu: true });
+          console.log(e.version, (await e.formulas()).length, "formulas");
+          const p = await (await e.preset("ABoxModKali")).render({ width: 96 });
+          console.log(p.width, p.height, p.device);
+          e.close();
+          JS
+          node try.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.system }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag and module agree
+        run: |
+          v=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' python/mb3d/__init__.py)
+          if [ "v$v" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::the tag is $GITHUB_REF_NAME but the module says version $v"; exit 1
+          fi
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" \
+            --notes "Python: \`pip install mb3d --find-links https://github.com/$GITHUB_REPOSITORY/releases/expanded_assets/$GITHUB_REF_NAME\`. Node.js and C: see the README." *

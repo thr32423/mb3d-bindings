@@ -12,13 +12,17 @@
                                progress=lambda stage, done, total: print(stage, done, total))
         print(picture.seconds, picture.device)
 
-The module starts `mb3d serve` and talks to it; nothing else is needed (no
-packages, no network). The program is looked for in `Engine(program=...)`,
-the environment variable `MB3D`, then on the PATH.
+    pip install mb3d --find-links https://github.com/thr32423/mb3d-bindings/releases/expanded_assets/v0.2.0
+
+The package holds the engine as a library (`libmb3d`, built from mb3d-rs)
+with its formulas and maps, loaded into your program: nothing is started,
+no other packages, no network. From this repository instead: build
+[../ffi](../ffi), or name a library with `Engine(library=...)` or the
+environment variable `LIBMB3D`.
 
 | | |
 |---|---|
-| `Engine(program=None, cpu=False, formulas=None, maps=None)` | starts the engine; `close()` or `with` ends it |
+| `Engine(cpu=False, formulas=None, maps=None, library=None)` | the engine (`cpu`: without the graphics card; `formulas`, `maps`: further folders); `close()` or `with` ends it |
 | `engine.open(file)`, `from_text(text)`, `from_bytes(data, name)`, `preset(formula)` | a `Scene` |
 | `engine.formulas()`, `formula_settings(name)`, `guide()` | formula names, a formula's settings, what the scene keys do |
 | `engine.cancel()` | stops the picture being calculated (from another thread) |

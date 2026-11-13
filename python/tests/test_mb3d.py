@@ -1,4 +1,4 @@
-"""python -m unittest discover -s tests   (in python/; MB3D=/path/to/mb3d)"""
+"""python -m unittest discover -s tests   (in python/; the library: built in ../ffi, or LIBMB3D=/path/to/libmb3d.so)"""
 
 import os
 import struct
