@@ -26,12 +26,12 @@ they are not on PyPI or npm yet.
 
     pip install mb3d --find-links https://github.com/thr32423/mb3d-bindings/releases/expanded_assets/v0.2.0
 
-**JavaScript** (Node.js 18 or later), the line of your system:
+**JavaScript** (Node.js 18 or later): download the package of your system
+from the releases page (`mb3d-0.2.0-linux-x64.tgz`, `-windows-x64`,
+`-macos-arm64`, `-macos-x64`) and install the file:
 
-    npm install https://github.com/thr32423/mb3d-bindings/releases/download/v0.2.0/mb3d-0.2.0-linux-x64.tgz
-    npm install https://github.com/thr32423/mb3d-bindings/releases/download/v0.2.0/mb3d-0.2.0-windows-x64.tgz
-    npm install https://github.com/thr32423/mb3d-bindings/releases/download/v0.2.0/mb3d-0.2.0-macos-arm64.tgz
-    npm install https://github.com/thr32423/mb3d-bindings/releases/download/v0.2.0/mb3d-0.2.0-macos-x64.tgz
+    curl -LO https://github.com/thr32423/mb3d-bindings/releases/download/v0.2.0/mb3d-0.2.0-linux-x64.tgz
+    npm install ./mb3d-0.2.0-linux-x64.tgz
 
 **C**: unpack `libmb3d-0.2.0-SYSTEM.tar.gz` of the releases page: the library
 (`libmb3d.so`, `libmb3d.dylib`, `mb3d.dll` with `mb3d.dll.lib`), the header

@@ -13,7 +13,8 @@
     console.log(picture.seconds, picture.device);
     engine.close();
 
-    npm install https://github.com/thr32423/mb3d-bindings/releases/download/v0.2.0/mb3d-0.2.0-linux-x64.tgz       (or -windows-x64, -macos-arm64, -macos-x64)
+    curl -LO https://github.com/thr32423/mb3d-bindings/releases/download/v0.2.0/mb3d-0.2.0-linux-x64.tgz       (or -windows-x64, -macos-arm64, -macos-x64)
+    npm install ./mb3d-0.2.0-linux-x64.tgz
 
 The package holds the engine as a Node.js add-on (`mb3d.node`, built from
 mb3d-rs) with its formulas and maps, loaded into your program: nothing is
