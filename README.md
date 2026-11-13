@@ -24,19 +24,14 @@ on the PATH, or tell where it is:
 
 ## Try it online
 
-No account, nothing to install; the first start takes a minute or two
-([mybinder.org](https://mybinder.org) starts a small machine for you).
+[The notebook](https://mybinder.org/v2/gh/thr32423/mb3d-bindings/main?urlpath=lab%2Ftree%2Fnotebook%2Fmb3d.ipynb)
+on [mybinder.org](https://mybinder.org): no account, nothing to install;
+the start takes a minute or two. Choose Run > Run All Cells: `mb3d serve`
+by hand, the Python and JavaScript examples below, sliders.
+([In Colab](https://colab.research.google.com/github/thr32423/mb3d-bindings/blob/main/notebook/mb3d.ipynb),
+with a Google account.)
 
-* [The explorer](https://mybinder.org/v2/gh/thr32423/mb3d-bindings/main?urlpath=explorer%2F):
-  turn and zoom a fractal in the browser, with the same steps shown as
-  Python and JavaScript code.
-* [The notebook](https://mybinder.org/v2/gh/thr32423/mb3d-bindings/main?urlpath=lab%2Ftree%2Fnotebook%2Fmb3d.ipynb):
-  `mb3d serve` by hand, the Python and JavaScript examples below, sliders.
-  ([In Colab](https://colab.research.google.com/github/thr32423/mb3d-bindings/blob/main/notebook/mb3d.ipynb),
-  with a Google account.)
-
-That machine has no graphics card and little processor: the pictures are
-the same, slower.
+That machine has no graphics card: the pictures are the same, slower.
 
 ## Python
 
