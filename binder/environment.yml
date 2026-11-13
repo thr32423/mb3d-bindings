@@ -1,4 +1,4 @@
-# what mybinder.org installs to run notebook/mb3d.ipynb and the explorer online
+# what mybinder.org installs to run notebook/mb3d.ipynb online
 channels:
   - conda-forge
 dependencies:
@@ -6,4 +6,3 @@ dependencies:
   - numpy
   - ipywidgets
   - nodejs=22
-  - jupyter-server-proxy
