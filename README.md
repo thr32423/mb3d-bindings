@@ -54,6 +54,41 @@ comes first on the PATH), tell the modules where it is:
 or in the code: `mb3d.Engine(program="/path/to/mb3d")`,
 `Engine.start({ program: "/path/to/mb3d" })`.
 
+## Installing the modules
+
+They are not on PyPI or npm yet; they install from this repository.
+
+**Python** (3.9 or later):
+
+    pip install "git+https://github.com/thr32423/mb3d-bindings#subdirectory=python"
+
+then `import mb3d`. Without pip: copy the folder [python/mb3d](python/mb3d)
+next to your program.
+
+**JavaScript** (Node.js 18 or later):
+
+    git clone https://github.com/thr32423/mb3d-bindings
+    npm install ./mb3d-bindings/js
+
+then `import { Engine } from "mb3d";`. Without npm: copy the one file
+[js/mb3d.mjs](js/mb3d.mjs) and import it by its path.
+
+**C library** (needs [Rust](https://rustup.rs); does not need the program
+`mb3d`, the engine is built into it):
+
+    git clone https://github.com/thr32423/mb3d-bindings
+    cd mb3d-bindings/ffi
+    cargo build --release
+
+gives `target/release/libmb3d.so` (macOS `libmb3d.dylib`, Windows
+`mb3d.dll`); the header is [ffi/include/mb3d.h](ffi/include/mb3d.h). A C
+program is built and run with
+
+    cc program.c -Iinclude -Ltarget/release -lmb3d -o program
+    LD_LIBRARY_PATH=target/release ./program
+
+([ffi/](ffi) has an example in C and one in Python.)
+
 ## Try it online
 
 [The notebook](https://mybinder.org/v2/gh/thr32423/mb3d-bindings/main?urlpath=lab%2Ftree%2Fnotebook%2Fmb3d.ipynb)
@@ -76,7 +111,7 @@ That machine has no graphics card: the pictures are the same, slower.
 
 ## JavaScript
 
-    import { Engine } from "./js/mb3d.mjs";
+    import { Engine } from "mb3d";
 
     const engine = await Engine.start();
     const scene = await engine.preset("Amazing Box");  // or engine.open("file.m3p")
