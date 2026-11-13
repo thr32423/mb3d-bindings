@@ -3,6 +3,9 @@
 [mb3d-rs](https://github.com/thr32423/mb3d-rs) (Mandelbulb3D's 3D fractals)
 from other languages. EXPERIMENTAL: everything here may still change.
 
+**[GUIDE.md](GUIDE.md)**: install, reference and example code for Python,
+JavaScript, C and Rust on one page.
+
 | folder | what | needs |
 |---|---|---|
 | [python/](python) | the module `mb3d` for Python | Python 3.9+ |
