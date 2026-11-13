@@ -88,7 +88,9 @@ jobs:
           curl -sSfL -o mb3d-rs-linux-x64.tar.gz $release/mb3d-rs-linux-x64.tar.gz
           curl -sSfL $release/SHA256SUMS | grep ' mb3d-rs-linux-x64.tar.gz$' > sum
           if command -v sha256sum > /dev/null; then sha256sum -c sum; else shasum -a 256 -c sum; fi
-          mkdir engine && tar xzf mb3d-rs-linux-x64.tar.gz -C engine --strip-components=1
+          # (only the three folders: the rest has links Windows cannot make)
+          mkdir engine && tar xzf mb3d-rs-linux-x64.tar.gz -C engine --strip-components=1 \
+            "mb3d-rs-$tag-x86_64-unknown-linux-gnu/M3Formulas" "mb3d-rs-$tag-x86_64-unknown-linux-gnu/EM_JIT_M3Formulas" "mb3d-rs-$tag-x86_64-unknown-linux-gnu/M3Maps"
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
