@@ -32,13 +32,14 @@ async function read(req) {
 
 const server = createServer(async (req, res) => {
   try {
-    if (req.method === "GET" && req.url.split("?")[0] === "/") {
+    const path = req.url.split("?")[0];
+    if (req.method === "GET" && path === "/") {
       send(res, await readFile(join(here, "index.html")), "text/html; charset=utf-8");
-    } else if (req.method === "GET" && req.url === "/api/info") {
+    } else if (req.method === "GET" && path === "/api/info") {
       send(res, { version: engine.version, formulas: await engine.formulas() });
-    } else if (req.method === "GET" && req.url === "/api/progress") {
+    } else if (req.method === "GET" && path === "/api/progress") {
       send(res, progress);
-    } else if (req.method === "GET" && req.url === "/api/m3p") {
+    } else if (req.method === "GET" && path === "/api/m3p") {
       const dir = await mkdtemp(join(tmpdir(), "mb3d-"));
       try {
         await scene.save(join(dir, "scene.m3p"));
@@ -46,7 +47,7 @@ const server = createServer(async (req, res) => {
       } finally {
         await rm(dir, { recursive: true });
       }
-    } else if (req.method === "POST" && req.url === "/api/open") {
+    } else if (req.method === "POST" && path === "/api/open") {
       const body = await read(req);
       const next = "preset" in body ? await engine.preset(body.preset) : "text" in body ? await engine.fromText(body.text) : await engine.fromBytes(Buffer.from(body.data, "base64"), body.name);
       const old = scene;
@@ -54,7 +55,7 @@ const server = createServer(async (req, res) => {
       latest = 0;
       await old.close();
       send(res, await about(next));
-    } else if (req.method === "POST" && req.url === "/api/render") {
+    } else if (req.method === "POST" && path === "/api/render") {
       const body = await read(req);
       // the page counts its requests: one that arrives after a newer one
       // shows no picture

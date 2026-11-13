@@ -62,7 +62,8 @@ class Handler(BaseHTTPRequestHandler):
         global scene, latest
         try:
             body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
-            if self.path == "/api/open":
+            path = self.path.partition("?")[0]
+            if path == "/api/open":
                 if "preset" in body:
                     new = engine.preset(body["preset"])
                 elif "text" in body:
@@ -74,7 +75,7 @@ class Handler(BaseHTTPRequestHandler):
                     old, scene, latest = scene, new, 0
                 old.close()
                 self.send(about(new))
-            elif self.path == "/api/render":
+            elif path == "/api/render":
                 with order:
                     # the page counts its requests: one that arrives after a
                     # newer one is dropped (each carries all the changes)
