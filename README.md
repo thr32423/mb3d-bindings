@@ -16,11 +16,43 @@ to it (mb3d-rs: docs/API.md); they have no other dependencies. The C library
 holds the engine itself, for programs that want the pixels in their own
 memory.
 
-The modules need the program `mb3d` of mb3d-rs, version 0.3.10 or later
-([download](https://github.com/thr32423/mb3d-rs/releases/latest)). Put it
-on the PATH, or tell where it is:
+## Installing the program mb3d
 
-    export MB3D=/path/to/mb3d
+The modules need the program `mb3d` of mb3d-rs, version 0.3.10 or later
+(`mb3d --version` tells; an older one has no `mb3d serve`). Installing the
+latest release over an older one updates it.
+
+**Linux and macOS**, one line: fetches the latest release into `~/mb3d-rs`,
+checks it and makes `mb3d` a command (run it again later to update):
+
+    curl -fsSL https://raw.githubusercontent.com/thr32423/mb3d-rs/master/download.sh | sh
+
+**Debian, Ubuntu, Mint**: download
+[mb3d-rs-linux-x64.deb](https://github.com/thr32423/mb3d-rs/releases/latest/download/mb3d-rs-linux-x64.deb), then
+
+    sudo apt install ./mb3d-rs-linux-x64.deb
+
+**Fedora, RHEL, Rocky** (openSUSE: `zypper` instead of `dnf`): download
+[mb3d-rs-linux-x64.rpm](https://github.com/thr32423/mb3d-rs/releases/latest/download/mb3d-rs-linux-x64.rpm), then
+
+    sudo dnf install ./mb3d-rs-linux-x64.rpm
+
+**Windows**: unpack
+[mb3d-rs-windows-x64.zip](https://github.com/thr32423/mb3d-rs/releases/latest/download/mb3d-rs-windows-x64.zip)
+into a folder of your choice; the program is `mb3d.exe` in it.
+
+**By hand** (any system): unpack the archive of your system from the
+[latest release](https://github.com/thr32423/mb3d-rs/releases/latest); the
+program `mb3d` is in the unpacked folder. On macOS run
+`xattr -dr com.apple.quarantine .` in that folder once.
+
+When `mb3d` is not a command (Windows, unpacked by hand, or an older one
+comes first on the PATH), tell the modules where it is:
+
+    export MB3D=/path/to/mb3d                  (Windows: set MB3D=C:\path\to\mb3d.exe)
+
+or in the code: `mb3d.Engine(program="/path/to/mb3d")`,
+`Engine.start({ program: "/path/to/mb3d" })`.
 
 ## Try it online
 
