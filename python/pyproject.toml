@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mb3d"
+version = "0.1.0"
+description = "3D fractals of Mandelbulb3D from Python, calculated by the program mb3d (mb3d-rs)"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+
+[tool.setuptools]
+packages = ["mb3d"]

@@ -1,0 +1,21 @@
+[package]
+name = "mb3d-ffi"
+version = "0.1.0"
+edition = "2021"
+description = "mb3d-rs as a C library (libmb3d): 3D fractals of Mandelbulb3D for C, C++, C#, Python and others"
+license = "LGPL-2.1-only"
+publish = false
+
+[lib]
+name = "mb3d"
+crate-type = ["cdylib"]
+
+# The engine, without its desktop application.
+[dependencies]
+engine = { package = "mb3d", git = "https://github.com/thr32423/mb3d-rs", tag = "v0.3.10", default-features = false, features = ["gpu", "jit", "oidn"] }
+
+# (as the engine is built)
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

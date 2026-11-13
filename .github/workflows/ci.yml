@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  modules:
+    name: Python and JavaScript modules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: The program mb3d (the latest release of mb3d-rs)
+        run: |
+          curl -sSfL -o mb3d.tar.gz https://github.com/thr32423/mb3d-rs/releases/latest/download/mb3d-rs-linux-x64.tar.gz
+          curl -sSfL -o SHA256SUMS https://github.com/thr32423/mb3d-rs/releases/latest/download/SHA256SUMS
+          grep ' mb3d-rs-linux-x64.tar.gz$' SHA256SUMS | sed 's/mb3d-rs-linux-x64.tar.gz/mb3d.tar.gz/' | sha256sum -c -
+          mkdir engine && tar xzf mb3d.tar.gz -C engine --strip-components=1
+          echo "MB3D=$PWD/engine/mb3d" >> "$GITHUB_ENV"
+          engine/mb3d --version
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Python tests
+        run: cd python && python -m unittest discover -s tests -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: JavaScript tests
+        run: cd js && node --test

@@ -1,0 +1,7 @@
+target/
+__pycache__/
+*.egg-info/
+node_modules/
+*.png
+!demos/**/*.png
+notebook/*.m3p
