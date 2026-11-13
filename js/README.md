@@ -1,7 +1,8 @@
 # mb3d for Node.js
 
-3D fractals of Mandelbulb3D from JavaScript, calculated by the program
-`mb3d` ([mb3d-rs](https://github.com/thr32423/mb3d-rs)). EXPERIMENTAL.
+3D fractals of Mandelbulb3D from JavaScript, calculated by the engine of
+[mb3d-rs](https://github.com/thr32423/mb3d-rs), which is inside the package.
+EXPERIMENTAL.
 
     import { Engine } from "mb3d";
 

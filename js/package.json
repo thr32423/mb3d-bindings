@@ -1,7 +1,7 @@
 {
   "name": "mb3d",
   "version": "0.2.0",
-  "description": "3D fractals of Mandelbulb3D from Node.js, calculated by the program mb3d (mb3d-rs)",
+  "description": "3D fractals of Mandelbulb3D from Node.js, with the mb3d-rs engine built in",
   "license": "MIT",
   "type": "module",
   "main": "mb3d.mjs",

@@ -1,7 +1,8 @@
 # mb3d for Python
 
-3D fractals of Mandelbulb3D from Python, calculated by the program `mb3d`
-([mb3d-rs](https://github.com/thr32423/mb3d-rs)). EXPERIMENTAL.
+3D fractals of Mandelbulb3D from Python, calculated by the engine of
+[mb3d-rs](https://github.com/thr32423/mb3d-rs), which is inside the package.
+EXPERIMENTAL.
 
     import mb3d
 
@@ -34,11 +35,16 @@ environment variable `LIBMB3D`.
 | `scene.render(width=, height=, file=, depth_file=, depth=, pixels=, progress=)` | a `Picture` |
 | `picture.png`, `depth_png`, `rgb`, `depth`, `width`, `height`, `seconds`, `device`, `save(file)` | the result |
 
-Pixels for numpy or Pillow:
+Pixels as numbers, for numpy, Pillow, OpenCV, matplotlib, PyTorch:
 
     p = scene.render(width=640, pixels=True, depth=True)
     image = numpy.frombuffer(p.rgb, numpy.uint8).reshape(p.height, p.width, 3)
     depth = numpy.frombuffer(p.depth, "<u2").reshape(p.height, p.width)
+
+`image` is rows × columns × red, green, blue (0 to 255). `depth` is 65535 at
+the nearest point and 0 where there is no fractal, so `depth > 0` is the
+fractal's outline, ready for cutting it out, fog or laying it over another
+picture. Both arrays are read-only: `.copy()` them to change them.
 
 In a Jupyter notebook a picture shows itself, and
 `mb3d.notebook.explore(scene)` gives sliders (needs ipywidgets).
