@@ -40,14 +40,15 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
-            if self.path == "/":
+            path = self.path.partition("?")[0]
+            if path == "/":
                 with open(os.path.join(here, "index.html"), "rb") as f:
                     self.send(f.read(), "text/html; charset=utf-8")
-            elif self.path == "/api/info":
+            elif path == "/api/info":
                 self.send({"version": engine.version, "formulas": engine.formulas()})
-            elif self.path == "/api/progress":
+            elif path == "/api/progress":
                 self.send(progress)
-            elif self.path == "/api/m3p":
+            elif path == "/api/m3p":
                 with tempfile.TemporaryDirectory() as d:
                     scene.save(os.path.join(d, "scene.m3p"))
                     with open(os.path.join(d, "scene.m3p"), "rb") as f:

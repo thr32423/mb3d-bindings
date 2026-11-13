@@ -32,7 +32,7 @@ async function read(req) {
 
 const server = createServer(async (req, res) => {
   try {
-    if (req.method === "GET" && req.url === "/") {
+    if (req.method === "GET" && req.url.split("?")[0] === "/") {
       send(res, await readFile(join(here, "index.html")), "text/html; charset=utf-8");
     } else if (req.method === "GET" && req.url === "/api/info") {
       send(res, { version: engine.version, formulas: await engine.formulas() });
