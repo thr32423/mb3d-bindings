@@ -36,6 +36,11 @@ jobs:
     needs: check
     if: needs.check.outputs.tag != ''
     uses: ./.github/workflows/ci.yml
+    # ci.yml's release job asks for contents: write and a called workflow
+    # may not ask for more than its caller gives; that job runs only on a
+    # tag, so it is skipped here
+    permissions:
+      contents: write
     with:
       engine: ${{ needs.check.outputs.tag }}
 
