@@ -8,6 +8,13 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
+  # follow-engine.yml: the same build against a newer engine release
+  workflow_call:
+    inputs:
+      engine:
+        description: "engine tag to build against instead of the pinned one"
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -39,6 +46,9 @@ jobs:
             ffi
             node
           key: ${{ matrix.target }}
+      - name: Pin the engine to a newer release (follow-engine.yml)
+        if: inputs.engine != ''
+        run: tools/pin_engine.sh "${{ inputs.engine }}"
       # Windows: a build script of the engine's graphics crates asks the
       # GitHub API with curl; without a token the shared runners hit the
       # anonymous rate limit (as in mb3d-rs's own workflow)

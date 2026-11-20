@@ -1,0 +1,57 @@
+name: Follow the engine
+
+# Once a day: when mb3d-rs has a newer release than the one the bindings
+# are pinned to, builds and tests the bindings against it on every system
+# (ci.yml) and, if all pass, commits the new pin to main.  It makes no
+# release of the bindings: that stays a tag pushed by hand.
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: follow-engine
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.newer.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: newer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pinned=$(sed -n 's/.*mb3d-rs", tag = "\(v[^"]*\)".*/\1/p' ffi/Cargo.toml)
+          latest=$(gh release view --repo thr32423/mb3d-rs --json tagName -q .tagName)
+          echo "pinned $pinned, latest release $latest"
+          newest=$(printf '%s\n%s\n' "${pinned#v}" "${latest#v}" | sort -V | tail -1)
+          if [ "v$newest" != "$pinned" ]; then echo "tag=$latest" >> "$GITHUB_OUTPUT"; fi
+
+  build:
+    needs: check
+    if: needs.check.outputs.tag != ''
+    uses: ./.github/workflows/ci.yml
+    with:
+      engine: ${{ needs.check.outputs.tag }}
+
+  pin:
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Commit the new pin
+        run: |
+          tag=${{ needs.check.outputs.tag }}
+          tools/pin_engine.sh "$tag"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Engine $tag (built and tested on every system by the Follow the engine workflow)"
+          git push origin HEAD:main
