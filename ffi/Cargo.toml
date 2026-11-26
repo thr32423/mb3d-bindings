@@ -12,7 +12,7 @@ crate-type = ["cdylib"]
 
 # The engine, without its desktop application.
 [dependencies]
-engine = { package = "mb3d", git = "https://github.com/thr32423/mb3d-rs", tag = "v0.3.15", default-features = false, features = ["gpu", "jit", "oidn"] }
+engine = { package = "mb3d", git = "https://github.com/thr32423/mb3d-rs", tag = "v0.3.16", default-features = false, features = ["gpu", "jit", "oidn"] }
 
 # (as the engine is built)
 [profile.release]
