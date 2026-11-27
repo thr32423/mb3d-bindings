@@ -157,7 +157,7 @@ application. It is not on crates.io; in `Cargo.toml`:
 
 ```toml
 [dependencies]
-mb3d = { git = "https://github.com/thr32423/mb3d-rs", tag = "v0.3.16", default-features = false, features = ["gpu", "jit"] }
+mb3d = { git = "https://github.com/thr32423/mb3d-rs", tag = "v0.3.17", default-features = false, features = ["gpu", "jit"] }
 ```
 
 ```rust
