@@ -701,8 +701,8 @@ dependencies = [
 
 [[package]]
 name = "mb3d"
-version = "0.3.19"
-source = "git+https://github.com/thr32423/mb3d-rs?tag=v0.3.19#655bd0ad503dfc33745acc3effd99330977ae5d7"
+version = "0.3.20"
+source = "git+https://github.com/thr32423/mb3d-rs?tag=v0.3.20#07ea9f68a8588cbdf23c3c116c1baae41bc250b2"
 dependencies = [
  "cranelift-codegen",
  "cranelift-frontend",

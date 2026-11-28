@@ -13,7 +13,7 @@ crate-type = ["cdylib"]
 # The engine's C functions (capi/ in its repository), over the engine
 # without its desktop application.
 [dependencies]
-mb3d-capi = { git = "https://github.com/thr32423/mb3d-rs", tag = "v0.3.19", features = ["gpu", "jit", "oidn"] }
+mb3d-capi = { git = "https://github.com/thr32423/mb3d-rs", tag = "v0.3.20", features = ["gpu", "jit", "oidn"] }
 
 # (as the engine is built)
 [profile.release]
