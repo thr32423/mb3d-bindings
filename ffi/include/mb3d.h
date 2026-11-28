@@ -124,6 +124,136 @@ char *mb3d_session_request(const mb3d_session *session, const char *request, mb3
 void mb3d_session_cancel(const mb3d_session *session);
 void mb3d_session_free(mb3d_session *session);
 
+/* The navigator: a camera flying through a scene, moved by steps measured
+ * with the distance to the surface (MB3D's Navigator without its window).
+ * One thread at a time. */
+typedef struct mb3d_navigator mb3d_navigator;
+
+/* A camera starting at the scene's view; free with mb3d_navigator_free. */
+mb3d_navigator *mb3d_navigator_new(const mb3d_scene *scene);
+void mb3d_navigator_free(mb3d_navigator *nav);
+/* Turns the camera where it stands, in degrees: a drag of (dx, dy) pixels
+ * turns by pitch = -dy * k, yaw = dx * k, k = field of view / height. */
+void mb3d_navigator_turn(mb3d_navigator *nav, double pitch, double yaw, double roll);
+/* Slides sideways by a drag of (dx, dy) picture heights. */
+void mb3d_navigator_slide(mb3d_navigator *nav, double dx, double dy);
+/* Flies forward (backward when negative) by that percentage of the
+ * distance to the surface (at most 90). */
+void mb3d_navigator_fly(mb3d_navigator *nav, double percent);
+/* The field of view in degrees. */
+double mb3d_navigator_fov(const mb3d_navigator *nav);
+/* The scene's directions of the picture's right, down and depth (each of
+ * length 1) into out[9], row after row: a compass. */
+void mb3d_navigator_axes(const mb3d_navigator *nav, double *out);
+/* A new scene of the view at width x height: quick != 0 the quick one for
+ * while the camera moves (simpler light), else the full one; free it with
+ * mb3d_scene_free. */
+mb3d_scene *mb3d_navigator_scene(const mb3d_navigator *nav, int quick, uint32_t width, uint32_t height);
+
+/* --- formulas and files (iPad app) --- */
+
+/* The names of all formulas, one per line; free with mb3d_string_free. */
+char *mb3d_formula_names(void);
+/* The Formula book in short: a line per formula, name<TAB>kind<TAB>the
+ * author's description (kind 0 to 6: 3D, 3D with analytic DE, 4D, 4D with
+ * analytic DE, transformation, dIFS shape, dIFS transformation; the
+ * description's line ends as the character 0x01); free with
+ * mb3d_string_free. */
+char *mb3d_formula_book(void);
+/* A formula's page of the Formula book as lines of tab-parted fields:
+ * "kind", number, label of its name, label of its explanation; "about",
+ * the author's text (line ends as 0x01) or a built-in formula's label;
+ * "value", name, default, label of what it does (or nothing); "hint",
+ * label. Labels ("@MB:...") are those of the program's language files.
+ * examples: how many example files use the formula. NULL when unknown. */
+char *mb3d_formula_page(const char *name, uint32_t examples);
+/* The example files of a folder by the formulas they use: a line per
+ * formula, its lower-case name and the files' names, parted by tabs. */
+char *mb3d_formula_examples(const char *folder);
+/* A formula's settings with their defaults as `key = value` lines of a
+ * [formula] section; free with mb3d_string_free. */
+char *mb3d_formula_settings(const char *name);
+/* Writes the scene as a Mandelbulb3D parameter file (.m3p); 0 or -1. */
+int mb3d_scene_save_m3p(const mb3d_scene *scene, const char *path);
+/* The parameters as Mandelbulb3D text (Mandelbulb3Dv18{...}) for the
+ * clipboard; free with mb3d_string_free. */
+char *mb3d_scene_mb3d_text(const mb3d_scene *scene, const char *title);
+/* The depth at pixel (x, y) as dof_focus takes it, into *focus: 0, or -1
+ * on the background. */
+int mb3d_scene_pick(const mb3d_scene *scene, uint32_t x, uint32_t y, double *focus);
+/* The bailout radius in use (the scene's rstop, else its formulas' default). */
+double mb3d_scene_bailout(const mb3d_scene *scene);
+/* MutaGen: 15 variations of the scene into out[15] (each freed with
+ * mb3d_scene_free; out[0] is the scene itself; the tree: 1, 1.1, 1.2, then
+ * their children); progress as mb3d_render's. 0, or -1. */
+int mb3d_variations(const mb3d_scene *scene, uint64_t seed, mb3d_scene **out, mb3d_progress progress, void *user);
+/* The same with the changes `strength` times MutaGen's own (0.1 to 3). */
+int mb3d_variations_strength(const mb3d_scene *scene, uint64_t seed, double strength, mb3d_scene **out,
+                             mb3d_progress progress, void *user);
+/* The same with the MutaGen window's settings in mutation[7]: the weight of
+ * other formulas, then weight and strength of the formulas' values, of the
+ * Julia constant and of the iteration counts (weights 0 to 1, strengths 0
+ * to 3; MutaGen's own: 0.75, 1, 1, 0.5, 1, 0.5, 1). */
+int mb3d_variations_mutation(const mb3d_scene *scene, uint64_t seed, const double *mutation, mb3d_scene **out,
+                             mb3d_progress progress, void *user);
+
+/* Monte Carlo: soft light by random rays, pass after pass less noisy. */
+typedef struct mb3d_montecarlo mb3d_montecarlo;
+mb3d_montecarlo *mb3d_montecarlo_new(const mb3d_scene *scene);
+void mb3d_montecarlo_free(mb3d_montecarlo *mc);
+/* One more pass; progress as mb3d_render's. 0, or -1 (stopped, failed). */
+int mb3d_montecarlo_pass(mb3d_montecarlo *mc, mb3d_progress progress, void *user);
+uint32_t mb3d_montecarlo_passes(const mb3d_montecarlo *mc);
+/* The picture so far; free with mb3d_picture_free. */
+mb3d_picture *mb3d_montecarlo_picture(const mb3d_montecarlo *mc);
+
+/* A JPEG of a w x h equirectangular picture with the tags of a 360 photo
+ * (Photo Sphere XMP, 360 camera EXIF); its length into *out_len; free with
+ * mb3d_bytes_free. */
+uint8_t *mb3d_jpeg_360(const uint8_t *jpeg, size_t len, uint32_t w, uint32_t h, size_t *out_len);
+void mb3d_bytes_free(uint8_t *p, size_t len);
+
+/* Animation: keyframes and the frames between them. */
+typedef struct mb3d_film mb3d_film;
+/* looped != 0 back to the first; interpolation 0 linear, 1 Bezier,
+ * 2 Catmull-Rom. */
+mb3d_film *mb3d_film_new(int looped, int interpolation);
+/* A turntable around the object: steps keyframes, frames each. */
+mb3d_film *mb3d_film_orbit(const mb3d_scene *scene, uint32_t steps, uint32_t frames);
+void mb3d_film_free(mb3d_film *film);
+int mb3d_film_add(mb3d_film *film, const mb3d_scene *scene, uint32_t frames);
+uint32_t mb3d_film_keyframes(const mb3d_film *film);
+mb3d_scene *mb3d_film_keyframe(const mb3d_film *film, uint32_t i);
+uint32_t mb3d_film_frames(const mb3d_film *film);
+/* The scene of frame i (from 0); free with mb3d_scene_free. */
+mb3d_scene *mb3d_film_frame(const mb3d_film *film, uint32_t i);
+/* The scene offset (0..1) of the way to the next frame (motion blur). */
+mb3d_scene *mb3d_film_frame_at(const mb3d_film *film, uint32_t i, double offset);
+/* Curves: the values over the frames. Names one per line (free with
+ * mb3d_string_free); a curve's values at every frame (values: room for
+ * mb3d_film_frames, NaN where none) and at the keyframes (room for
+ * mb3d_film_keyframes each). */
+char *mb3d_curve_names(void);
+int mb3d_film_curve(const mb3d_film *film, uint32_t param, double *values, uint32_t *key_frames, double *key_values);
+int mb3d_film_set_curve_key(mb3d_film *film, uint32_t param, uint32_t key, double value);
+
+/* 3D model: the BulbTracer's triangle mesh. */
+typedef struct mb3d_mesh mb3d_mesh;
+mb3d_mesh *mb3d_mesh_trace(const mb3d_scene *scene, uint32_t resolution, int colors, uint32_t smooth, double size,
+                           mb3d_progress progress, void *user);
+void mb3d_mesh_free(mb3d_mesh *mesh);
+size_t mb3d_mesh_vertex_count(const mb3d_mesh *mesh);
+size_t mb3d_mesh_face_count(const mb3d_mesh *mesh);
+/* 3 floats per vertex; valid while the mesh lives. */
+const float *mb3d_mesh_vertices(const mb3d_mesh *mesh);
+const float *mb3d_mesh_normals(const mb3d_mesh *mesh);
+/* 4 floats per vertex (red, green, blue, palette position) or NULL. */
+const float *mb3d_mesh_colors(const mb3d_mesh *mesh);
+/* 3 vertex numbers per triangle. */
+const uint32_t *mb3d_mesh_faces(const mb3d_mesh *mesh);
+/* OBJ, PLY or STL by the extension; 0 or -1. */
+int mb3d_mesh_save(const mb3d_mesh *mesh, const char *path);
+
 #ifdef __cplusplus
 }
 #endif

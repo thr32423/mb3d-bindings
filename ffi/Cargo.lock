@@ -612,8 +612,8 @@ dependencies = [
 
 [[package]]
 name = "mb3d"
-version = "0.3.17"
-source = "git+https://github.com/thr32423/mb3d-rs?tag=v0.3.17#903b737ac8c76ae299aeddfaeeab39a94a9f998c"
+version = "0.3.19"
+source = "git+https://github.com/thr32423/mb3d-rs?tag=v0.3.19#655bd0ad503dfc33745acc3effd99330977ae5d7"
 dependencies = [
  "cranelift-codegen",
  "cranelift-frontend",
@@ -628,10 +628,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "mb3d-capi"
+version = "0.1.0"
+source = "git+https://github.com/thr32423/mb3d-rs?tag=v0.3.19#655bd0ad503dfc33745acc3effd99330977ae5d7"
+dependencies = [
+ "mb3d",
+]
+
+[[package]]
 name = "mb3d-ffi"
 version = "0.2.0"
 dependencies = [
- "mb3d",
+ "mb3d-capi",
 ]
 
 [[package]]

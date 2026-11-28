@@ -12,7 +12,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 # The engine, without its desktop application.
-engine = { package = "mb3d", git = "https://github.com/thr32423/mb3d-rs", tag = "v0.3.17", default-features = false, features = ["gpu", "jit", "oidn"] }
+engine = { package = "mb3d", git = "https://github.com/thr32423/mb3d-rs", tag = "v0.3.19", default-features = false, features = ["gpu", "jit", "oidn"] }
 napi = { version = "3", default-features = false, features = ["napi6"] }
 napi-derive = "3"
 

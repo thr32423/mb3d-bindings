@@ -46,7 +46,7 @@ library itself.
 **Rust**: the engine is the crate `mb3d` of mb3d-rs, without its desktop
 application; in `Cargo.toml`
 
-    mb3d = { git = "https://github.com/thr32423/mb3d-rs", tag = "v0.3.17", default-features = false, features = ["gpu", "jit"] }
+    mb3d = { git = "https://github.com/thr32423/mb3d-rs", tag = "v0.3.19", default-features = false, features = ["gpu", "jit"] }
 
 and `mb3d::api` in the code ([docs/API.md](https://github.com/thr32423/mb3d-rs/blob/master/docs/API.md)).
 
